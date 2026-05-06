@@ -41,7 +41,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `INSTALL.md` — Claude 向け：repo → `~/.claude/` 展開手順（権威ある仕様）
 - `MERGE.md` — Claude 向け：`~/.claude/` → repo 吸い上げ手順（権威ある仕様）
 - `CLAUDE.snippet.md` — マーカーブロックに挿入される純内容
-- `commands/j-*.md`, `skills/j-*/**` — 配信対象本体
+- `commands/j-*.md`, `skills/j-*/**` — 配信対象本体（現状: `j-handoff`,
+  `j-study`）。それぞれの使い分けは `CLAUDE.snippet.md` および各 `SPEC.md` 参照。
 
 CLAUDE.md マージや展開挙動の詳細は `INSTALL.md` / `MERGE.md` が単一情報源。
 ここでは概観のみ。

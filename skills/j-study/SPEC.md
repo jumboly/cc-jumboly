@@ -1,25 +1,32 @@
-# /j-handoff specification
+# /j-study specification
 
-Read by the Agent spawned by `/j-handoff`. The slash-command body is kept
+Read by the Agent spawned by `/j-study`. The slash-command body is kept
 tiny so the caller's context isn't bloated by this file.
 
 ## Goal
 
-Produce a single self-contained claude.ai handoff prompt that lets the user
-take a topic to claude.ai (Web) for top-down, textbook-grade learning. The
-caller (Claude Code) drives implementation; claude.ai provides the deep
-explanation that doesn't fit in-line in a fast-moving build session.
+Produce a self-contained textbook (markdown) that the user reads inside
+the current Claude Code session for top-down, textbook-grade learning.
+Unlike `/j-handoff`, this does NOT generate a prompt for claude.ai — the
+output IS the textbook itself, rendered directly into the conversation.
+Suitable for proprietary code, internal materials, or anything that
+cannot be shared outside the user's environment.
 
 ## Trigger phrases (offered by the caller, not the agent)
 
-The caller (Claude Code) should offer to invoke `/j-handoff` when the user
+The caller (Claude Code) should offer to invoke `/j-study` when the user
 says any of these (Japanese-leaning):
 
-- 「claude.ai に持っていきたい / 続きはあっちで」
-- 「プロンプトにして / プロンプト用意して」
-- 「整理して理解したい / メンタルモデル構築から」
-- 「腹落ちさせたい / 教科書化したい」
-- 「根っこから整理して」「概念が多すぎる」
+- 「ここで（claude.ai に出さずに）腹落ちさせたい」
+- 「コード見せたまま教科書化したい」
+- 「自社コードで／プロプライエタリ題材で整理したい」
+- 「外に出せないけど整理して理解したい」
+- 「メンタルモデル構築から、ここで」
+- 「腹落ちさせたい」「教科書化したい」（claude.ai への言及なし）
+
+`/j-handoff` 寄りシグナル（claude.ai／持っていく／プロンプト 等）との混在判定は
+caller の責務であり、その方針は `~/.claude/CLAUDE.md` のマーカーブロックに
+記載されている（cc-jumboly 提供）。SPEC では繰り返さない。
 
 The agent itself never evaluates these — by the time the agent runs, the
 trigger has already fired.
@@ -38,14 +45,12 @@ The bootstrap caller passes these in the agent prompt:
 The agent reads, in addition:
 
 - `~/.claude/CLAUDE.md` — global preferences (language, etc.). **Treat as
-  the source of truth**; do not re-state defaults inside the generated
-  prompt.
+  the source of truth**; do not re-state defaults inside the textbook.
 - The project memory dir at `~/.claude/projects/<encoded-cwd>/memory/`,
   where `<encoded-cwd>` is `CWD` with `/` replaced by `-`. Read MEMORY.md
   and any individual `*.md` files relevant to the topic.
 - Cross-project memories at `~/.claude/projects/*/memory/*.md`. Grep for
-  topic keywords (e.g., topic = pkg-config → `shpx*`,
-  `setup-vcpkg-nuget-cache`, `libspatialite-sys`). Pull only relevant.
+  topic keywords. Pull only relevant.
 - Session transcripts in `TRANSCRIPT_PATHS` to extract concrete stumbling
   blocks. **Multi-session handling**: when the list has more than one
   entry, treat each transcript as an independent session (do not blend
@@ -57,14 +62,17 @@ The agent reads, in addition:
   `stat`). Most-recent session weighted highest if you must pick.
   **Role attribution is critical** — see "Identifying genuine user
   stumbles" below.
+- **Proprietary inputs allowed.** Since output stays inside Claude Code,
+  the agent may freely Read and embed code from the user's project
+  (file contents, identifiers, internal API names, in-repo doc snippets)
+  without any abstraction or self-censorship. **Concrete is mandatory.**
 
 ## Fallbacks
 
 - `TRANSCRIPT_PATHS` empty → treat `ARGUMENTS` as the user's own summary
-  of the session(s). If `ARGUMENTS` is also empty, return a code block
-  whose content is a one-line apology in Japanese asking the user to
-  re-invoke with a topic argument or scope hint, or run from the project
-  directory.
+  of the session(s). If `ARGUMENTS` is also empty, return a one-line
+  apology in Japanese asking the user to re-invoke with a topic argument
+  or scope hint, or run from the project directory.
 - Project memory dir missing → proceed with global CLAUDE.md and
   ARGUMENTS only.
 
@@ -99,28 +107,36 @@ and a later user correction, the user taught — exclude entirely.
 - Assistant's own mistakes (build retries, ranlib warnings) it fixed
   without user intervention.
 
-**Citation test.** Every stumble in the generated prompt must be
-backed by a specific user-role message. If the only evidence is in
-assistant-role messages, drop it.
+**Citation test.** Every stumble in the textbook must be backed by a
+specific user-role message. If the only evidence is in assistant-role
+messages, drop it.
 
 ## Output contract
 
-A single fenced markdown code block. Nothing else; no preamble, no
-follow-up. The bootstrap caller wraps it with a one-line preamble.
+Plain markdown, ready to render directly in the Claude Code chat.
 
-## Required structure of the generated prompt
+- **Do NOT wrap the textbook in a fenced code block.** The bootstrap
+  caller displays the result as-is.
+- A short opening line (e.g.「以下、教科書です。」) is allowed but not
+  required.
+- Narration / authorial asides may be mixed with exposition.
+- Output should be readable top-to-bottom in the chat without copy-paste
+  to another tool.
+
+## Required structure of the textbook
 
 Order matters:
 
-1. **User's premise** — role, language, current project. Brief but enough
-   for claude.ai to assume zero shared context.
-2. **Concrete stumbling blocks from THIS session** — actual file contents
-   the user saw, exact error messages, unexpected outputs. Numbered list.
-   These are the "concrete grounding" that distinguishes this prompt from
-   a generic search query.
-3. **Mental-model goal** — tree-structured: trunk → main branches → finer
-   branches → leaves → flowers. Specify which concepts must appear in
-   the tree, each with its position.
+1. **Topic premise** — what we're building a mental model of, and why
+   now. Reference the user's session context (current project, the
+   specific stumble that triggered this study).
+2. **Concrete stumbling blocks from THIS session** — actual file
+   contents the user saw, exact error messages, unexpected outputs.
+   Numbered list. **Embed verbatim**; no abstraction needed since
+   output stays internal.
+3. **Mental-model goal** — tree-structured: trunk → main branches →
+   finer branches → leaves → flowers. Specify which concepts must
+   appear in the tree, each with its position.
 4. **Style/format requirements**:
    - Top-down: trunk first, root concept up front
    - Each chapter opens with "this chapter builds X mental model" (1–2
@@ -128,35 +144,41 @@ Order matters:
    - Each chapter closes with 1–2 understanding-check questions; answers
      in the next chapter's opening
    - Define every term on first use
-   - Concrete examples (file snippets, command outputs) preferred over
-     abstract description
+   - Concrete examples (file snippets, command outputs, in-repo
+     identifiers) preferred over abstract description
    - Position the user's stumbles within the tree, not as appendix
    - Single response, no "to be continued"
    - Closing: one-screen ASCII tree or table-of-contents summary
 5. **Length** — 6–8 chapters, 20–30 minute read.
 
-## Hard rules (the agent must enforce these on the generated prompt)
+## Hard rules (the agent must enforce these on the textbook)
 
-- No fixed template — each handoff reflects THIS session's specific
+- No fixed template — each textbook reflects THIS session's specific
   incidents.
 - No generalising stumbles into "common pitfalls" — embed the specific
   ones (the actual `.pc` file content, the actual segfault).
-- Single fenced code block — never split.
-- Don't use `/j-handoff` to explain inline within the current Claude
-  Code session; the point is to hand off.
+- **This DOES run within the current Claude Code session.** The output
+  IS the textbook itself, not a prompt for another system. Don't add
+  "ask claude.ai to explain X" deferrals.
+- No self-censorship of proprietary content. The point of `/j-study`
+  (vs `/j-handoff`) is that internal material can stay internal.
 - **Never full-Read a transcript JSONL.** Always `grep -n` first (for
   `role:"user"` lines and topic keywords), then Read only
   `offset±50`-line windows around matches. Applies regardless of file
   size — JSONLs can be megabytes.
 
-## Authorial voice (how the prompt itself reads)
+## Authorial voice (how the textbook reads)
 
-- First-person, as the user speaking to claude.ai.
-- The agent's narration must not appear inside the fenced block.
+- "Teacher" register: explanatory, third-person about the system,
+  second-person (「あなた」) OK when addressing the user. Narration
+  mixed with exposition is fine.
+- First-person-as-user is **not** required (the agent is teaching, not
+  the user speaking to claude.ai).
 - Concrete examples are mandatory; never omit them to save space — they
-  are the entire value-add.
+  are the entire value-add. Where a `/j-handoff` prompt would have to
+  abstract repo internals, here embed them verbatim.
 
 ## Language
 
 Per `~/.claude/CLAUDE.md` global preference; project-level MEMORY.md may
-override. Do not re-state the default inside the generated prompt.
+override. Do not re-state the default inside the textbook.

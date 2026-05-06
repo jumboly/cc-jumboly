@@ -1,8 +1,10 @@
-# /j-handoff — generate a claude.ai handoff prompt
+# /j-study — generate a textbook inside the current Claude Code session
 
-Trigger: the user wants to take a topic to claude.ai (Web) for top-down deep
-learning. Detailed trigger phrases live in
-`~/.claude/skills/j-handoff/SPEC.md`.
+Trigger: the user wants top-down deep learning of a topic that should
+**not** leave the current Claude Code environment (proprietary code,
+internal materials, anything not for claude.ai). For public-knowledge
+topics that should go to claude.ai, use `/j-handoff` instead. Detailed
+trigger phrases live in `~/.claude/skills/j-study/SPEC.md`.
 
 1. Parse leading scope hint from `ARGUMENTS`, then resolve transcripts.
 
@@ -61,14 +63,33 @@ learning. Detailed trigger phrases live in
 
 2. Spawn an Agent (`subagent_type: general-purpose`) with this prompt:
 
-       Generate a claude.ai handoff prompt per
-       ~/.claude/skills/j-handoff/SPEC.md.
+       Generate a textbook per ~/.claude/skills/j-study/SPEC.md.
        ARGUMENTS: {{TOPIC}}
        TRANSCRIPT_PATHS:
        {{PATHS_NEWLINE_SEPARATED}}
        CWD: {{CWD}}
 
-       Output: one fenced markdown code block, nothing else.
+       Output: plain markdown, ready to display in chat. Do NOT wrap in
+       a fenced code block.
 
-3. Present the Agent's returned text verbatim, prefixed only by:
-   `claude.ai に貼ってください:`
+3. Display the Agent's returned text verbatim in the chat.
+
+4. After display, offer to save:
+
+       「保存しますか？ `./j-study/<YYYY-MM-DD>-<topic-slug>.md` に書き出します」
+
+   If the user agrees:
+   - `mkdir -p ./j-study`
+   - Slug derivation: source = `ARGUMENTS`, fallback = the textbook's first
+     H1 heading, fallback = `study`. Transform: replace whitespace and path
+     separators (`/`, `\`) with `-`, collapse runs of `-`, strip leading/
+     trailing `-`. Unicode (kanji, kana) is preserved verbatim. If the
+     result is empty or `.`/`..`, use `study`.
+   - Target = `./j-study/$(date +%Y-%m-%d)-<slug>.md`. If the file already
+     exists, show its first line and ask: overwrite / append `-2` (or next
+     free integer) / cancel.
+   - Issue the Write. On any I/O failure, report it in one line — the
+     textbook is still on screen, nothing is lost.
+   - If CWD is in a git repo and `.gitignore` does not already match
+     `j-study/`, ask yes/no; on yes append `j-study/` to `.gitignore`.
+     Skip the prompt if it already matches.
