@@ -30,7 +30,7 @@ masa 個人用の Claude Code ハーネス（スキル / コマンド / 共有 C
   パブリック知識／外に出して良い題材向け。
 - **`/j-study`** — Claude Code セッション内で完結する教科書を生成。
   プロプライエタリコード／社内事情／外に出せない題材向け。
-- **`j-jev`**（スキル）— TypeSafe AI の Jev を Vercel AI Gateway 経由で使うときの知識（API の要点・ハマりどころ・429/503 の実測傾向・SDK `@jumboly/jev-client` への案内）。JEV を扱う作業で自動的に参照される。
+- **`j-jev`**（スキル）— TypeSafe AI の Jev を Vercel AI Gateway 経由または TypeSafe の直接 API で使うときの知識（API の要点・経路ごとの違い・ハマりどころ・429/503 の実測傾向）。JEV を扱う作業で自動的に参照される。
 
 詳細仕様はそれぞれ `commands/j-*.md` と `skills/j-*/SPEC.md` を参照。
 
